@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# lavka-web
 
-## Getting Started
+Фронтенд онлайн-магазина продуктов «Лавка» на Next.js 16 (App Router, React 19, Tailwind CSS 4).
 
-First, run the development server:
+Работает поверх бэкенда Lavka API (Java, Spring Boot, отдельный репозиторий): все данные — товары, заказы, пользователи — живут там, фронтенд ходит в API со своего сервера.
+
+## Что умеет
+
+| Кто | Что видит и может |
+|---|---|
+| **Гость** | смотреть каталог, собирать корзину. Войти нужно только при оформлении заказа, корзина при этом сохраняется |
+| **Покупатель** (`CUSTOMER`) | всё, что гость, плюс: оформить заказ, видеть **свои** заказы и историю их статусов, отменить заказ, пока он в статусе «Оформлен» |
+| **Сотрудник склада** (`WAREHOUSE`) | видеть **все** заказы всех клиентов, проводить их по статусам: «Начать сборку» → «Собран» → «Выполнен», отменить новый заказ, смотреть историю статусов |
+
+Страницы:
+
+| Адрес | Что там |
+|---|---|
+| `/` | приветствие, вход и регистрация |
+| `/catalog` | список товаров с кнопкой «В корзину» |
+| `/basket` | корзина: количество, сумма, «Оформить заказ» |
+| `/orders` | «Мои заказы» у покупателя, «Все заказы» у склада |
+
+После входа покупатель попадает в каталог, сотрудник склада — сразу к заказам. У склада в меню только «Лавка» и «Заказы».
+
+## Запуск
+
+Нужны Node.js 20+ и запущенный бэкенд на `http://localhost:8080` (как его поднять — в README бэкенда).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev          # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Сборка и запуск в production-режиме:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Проверки:
 
-## Learn More
+```bash
+npx tsc --noEmit     # типы
+npm run lint         # ESLint
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Настройки
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Переменная | По умолчанию | Для чего |
+|---|---|---|
+| `LAVKA_API_URL` | `http://localhost:8080` | адрес бэкенда |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Переменную можно положить в `.env.local` (файл не коммитится).
 
-## Deploy on Vercel
+### Демо-данные
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Скрипт бэкенда `./src/test/fill_all.sh` заводит товары, покупателей `customer1…5@gmail.com` (пароль `123456`) с заказами и сотрудника склада `warehouse@lavka.local`. Роль `WAREHOUSE` выдаётся только в базе бэкенда, через сайт её получить нельзя.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Как устроено
+
+```
+app/
+├── page.tsx                  /  — вход и регистрация
+├── (shop)/                   страницы магазина с общей шапкой
+│   ├── layout.tsx            шапка: меню по роли, счётчик корзины, «Войти» / «Выйти»
+│   ├── catalog/page.tsx
+│   ├── basket/page.tsx
+│   └── orders/page.tsx
+├── actions/                  Server Actions — всё, что меняет данные
+│   ├── auth.ts               вход, регистрация, выход
+│   ├── cart.ts               изменение корзины
+│   ├── order.ts              оформление заказа
+│   ├── order-status.ts       смена статуса заказа
+│   └── order-history.ts      загрузка истории статусов
+└── ui/                       клиентские компоненты: формы и кнопки
+lib/
+├── api.ts                    адрес API, типы ответов (User, Product, Order…)
+├── session.ts                сохранение токенов, запросы к API с обновлением токена
+├── user.ts                   текущий пользователь (GET /users/me)
+├── cart.ts                   чтение корзины из cookie
+├── order-status.ts           разрешённые переходы статусов, подписи и цвета
+└── format.ts                 формат цены
+proxy.ts                      обновляет access-токен перед страницами магазина
+```
+
+### Авторизация
+
+- Бэкенд выдаёт пару JWT: access (15 минут) и refresh (30 дней, одноразовый).
+- Токены хранятся в cookie `access_token` и `refresh_token` с флагом `httpOnly`, поэтому JavaScript в браузере их не видит. Запросы к API делает сервер Next.js, а не браузер, поэтому CORS для фронтенда не нужен.
+- `proxy.ts` перед `/catalog`, `/basket` и `/orders` проверяет срок access-токена и, если он истёк или истекает, получает новую пару через `POST /auth/refresh`. Пока жив refresh-токен, заново входить не нужно.
+- Server Actions делают то же самое через `authFetch` из `lib/session.ts`: при ответе `401` один раз обновляют токены и повторяют запрос.
+- «Выйти» вызывает `POST /auth/logout`, который отзывает оба токена, и удаляет cookie вместе с корзиной.
+
+### Корзина
+
+На бэкенде корзины нет: `POST /orders` принимает весь список покупок сразу. Поэтому корзина хранится в cookie `cart` как `{ "id товара": количество }`. Для неё действуют те же ограничения, что у API: не больше 100 позиций и 1000 штук одного товара. Положить больше, чем есть на складе, нельзя, но сам остаток покупателю не показывается.
+
+### Статусы заказов
+
+```
+Оформлен ──► Собирается ──► Собран ──► Выполнен
+   │
+   └──► Отменён
+```
+
+Переходы и права совпадают с бэкендом (`lib/order-status.ts`): покупатель может только отменить свой заказ из «Оформлен», остальное делает склад. Если статус успел поменять кто-то другой, бэкенд отвечает `409`, страница показывает это и обновляет список.
+
+## Известные ограничения
+
+- Склад пока не может создавать, менять и удалять товары через сайт, хотя API это позволяет.
+- refresh-токен одноразовый. Если две вкладки одновременно попробуют обновить истёкший токен, одна из них может отправить на страницу входа.
+- Корзина живёт в cookie конкретного браузера и не переносится между устройствами.

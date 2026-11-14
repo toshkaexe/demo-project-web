@@ -46,11 +46,27 @@ npx tsc --noEmit     # типы
 npm run lint         # ESLint
 ```
 
+### В Docker
+
+Бэкенд запускается отдельно, своим `docker compose`, и должен отвечать на `http://localhost:8080`. Фронтенд-контейнер ходит к нему через `host.docker.internal`.
+
+```bash
+docker compose up -d --build     # http://localhost:3000
+docker compose logs -f web       # логи
+docker compose down              # остановить
+```
+
+- Образ собирается в три этапа (`Dockerfile`): зависимости → `next build` с `output: "standalone"` → итоговый образ на `node:22-alpine` только с `server.js`, нужными модулями и статикой. Приложение работает от пользователя `node`, не от root.
+- Если порт 3000 занят (например, `npm run dev`): `WEB_PORT=3100 docker compose up -d`.
+- После изменений в коде пересобрать: `docker compose up -d --build`.
+
 ### Настройки
 
 | Переменная | По умолчанию | Для чего |
 |---|---|---|
-| `LAVKA_API_URL` | `http://localhost:8080` | адрес бэкенда |
+| `LAVKA_API_URL` | `http://localhost:8080`, в Docker — `http://host.docker.internal:8080` | адрес бэкенда |
+| `COOKIE_SECURE` | `true` в production, `false` в разработке; в Docker — `false` | флаг `Secure` у cookie: браузер отправляет их только по HTTPS. За HTTPS ставьте `true` |
+| `WEB_PORT` | `3000` | порт на хосте для `docker compose` |
 
 Переменную можно положить в `.env.local` (файл не коммитится).
 
@@ -83,6 +99,7 @@ lib/
 ├── order-status.ts           разрешённые переходы статусов, подписи и цвета
 └── format.ts                 формат цены
 proxy.ts                      обновляет access-токен перед страницами магазина
+Dockerfile, docker-compose.yaml
 ```
 
 ### Авторизация

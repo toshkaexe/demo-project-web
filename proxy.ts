@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   ACCESS_COOKIE,
+  COOKIE_SECURE,
   API_URL,
   REFRESH_COOKIE,
   REFRESH_MAX_AGE,
@@ -53,7 +54,7 @@ export async function proxy(request: NextRequest) {
   // …и сохраняются в браузере
   const base = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     sameSite: "lax" as const,
     path: "/",
   };

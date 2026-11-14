@@ -1,5 +1,13 @@
 export const API_URL = process.env.LAVKA_API_URL ?? "http://localhost:8080";
 
+/**
+ * Ставить ли cookie флаг Secure (только HTTPS). По умолчанию — в production.
+ * Для production-сборки по http (например, в Docker на localhost) — COOKIE_SECURE=false.
+ */
+export const COOKIE_SECURE = process.env.COOKIE_SECURE
+  ? process.env.COOKIE_SECURE === "true"
+  : process.env.NODE_ENV === "production";
+
 export const ACCESS_COOKIE = "access_token";
 export const REFRESH_COOKIE = "refresh_token";
 export const REFRESH_MAX_AGE = 30 * 24 * 60 * 60; // 30 дней

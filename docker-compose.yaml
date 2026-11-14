@@ -1,0 +1,18 @@
+# Фронтенд Лавки. Бэкенд запускается отдельно (свой docker compose) и должен
+# быть доступен на хосте: http://localhost:8080.
+services:
+  web:
+    build: .
+    image: lavka-web
+    container_name: lavka-web
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      # из контейнера localhost — это сам контейнер, поэтому к бэкенду идём через хост
+      LAVKA_API_URL: ${LAVKA_API_URL:-http://host.docker.internal:8080}
+      # сайт открывается по http, поэтому cookie без флага Secure
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    extra_hosts:
+      # на Linux host.docker.internal сам не появляется
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

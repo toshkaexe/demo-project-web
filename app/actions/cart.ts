@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { API_URL, type Product } from "@/lib/api";
+import { API_URL, COOKIE_SECURE, type Product } from "@/lib/api";
 import {
   CART_COOKIE,
   MAX_CART_ITEMS,
@@ -18,7 +18,7 @@ async function writeCart(cart: Cart) {
   }
   store.set(CART_COOKIE, JSON.stringify(cart), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     sameSite: "lax",
     path: "/",
     maxAge: 30 * 24 * 60 * 60,

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import {
   ACCESS_COOKIE,
+  COOKIE_SECURE,
   API_URL,
   REFRESH_COOKIE,
   REFRESH_MAX_AGE,
@@ -12,7 +13,7 @@ export async function saveTokens(tokens: TokenPair) {
   const store = await cookies();
   const base = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     sameSite: "lax" as const,
     path: "/",
   };

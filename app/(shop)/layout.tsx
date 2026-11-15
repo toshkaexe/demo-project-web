@@ -33,7 +33,7 @@ function Logo({ href }: { href: string }) {
   );
 }
 
-/** Склад видит только «Лавка» и «Заказы», остальные — каталог и корзину. */
+/** Склад видит «Лавка», «Заказы» и «Товары», остальные — каталог и корзину. */
 async function Nav() {
   const user = await currentUser();
 
@@ -43,6 +43,9 @@ async function Nav() {
         <Logo href="/orders" />
         <Link href="/orders" className={navLink}>
           Заказы
+        </Link>
+        <Link href="/stock" className={navLink}>
+          Товары
         </Link>
       </nav>
     );
@@ -82,7 +85,7 @@ async function UserBar() {
   if (!user) {
     return (
       <Link
-        href="/"
+        href="/login"
         className="flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
       >
         Войти

@@ -29,7 +29,7 @@ export async function placeOrder(): Promise<CheckoutState> {
     return { error: "Сервер недоступен, попробуйте позже" };
   }
 
-  if (!res) redirect("/?next=/basket"); // не вошёл или сессия закончилась
+  if (!res) redirect("/login?next=/basket"); // не вошёл или сессия закончилась
 
   if (res.status === 201) {
     const order = (await res.json()) as CreatedOrder;

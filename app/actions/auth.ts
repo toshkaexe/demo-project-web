@@ -120,5 +120,5 @@ export async function logout() {
   store.delete(ACCESS_COOKIE);
   store.delete(REFRESH_COOKIE);
   store.delete(CART_COOKIE);
-  redirect("/");
+  redirect("/catalog");
 }

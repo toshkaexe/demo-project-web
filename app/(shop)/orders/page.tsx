@@ -39,7 +39,7 @@ export default function OrdersPage() {
 
 async function OrderList() {
   const user = await currentUser();
-  if (!user) redirect("/?next=/orders");
+  if (!user) redirect("/login?next=/orders");
   const isWarehouse = user.role === "WAREHOUSE";
   const title = (
     <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -52,7 +52,7 @@ async function OrderList() {
     headers: { Authorization: `Bearer ${access}` },
     cache: "no-store",
   }).catch(() => null);
-  if (res?.status === 401) redirect("/?next=/orders");
+  if (res?.status === 401) redirect("/login?next=/orders");
   if (!res?.ok) {
     return (
       <>

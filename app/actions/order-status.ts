@@ -28,7 +28,7 @@ export async function changeOrderStatus(
     return { error: "Сервер недоступен, попробуйте позже" };
   }
 
-  if (!res) redirect("/?next=/orders");
+  if (!res) redirect("/login?next=/orders");
 
   if (res.ok) {
     refresh();

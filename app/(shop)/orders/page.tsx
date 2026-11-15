@@ -1,7 +1,13 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ACCESS_COOKIE, API_URL, type Order } from "@/lib/api";
+import {
+  ACCESS_COOKIE,
+  API_URL,
+  addressLine,
+  type DeliveryAddress,
+  type Order,
+} from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 import { currentUser } from "@/lib/user";
 import { OrderStatusActions } from "@/app/ui/order-status-actions";
@@ -104,7 +110,9 @@ async function OrderList() {
                   {STATUS[o.status]?.label ?? o.status}
                 </span>
                 {isWarehouse && (
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">{o.user_email}</span>
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {o.user_email}
+                  </span>
                 )}
               </div>
               <span className="text-right text-sm text-zinc-500">
@@ -118,14 +126,19 @@ async function OrderList() {
             </div>
             <ul className="px-5 py-3 text-sm">
               {o.items.map((i) => (
-                <li key={i.product_id} className="flex justify-between gap-4 py-0.5">
+                <li
+                  key={i.product_id}
+                  className="flex justify-between gap-4 py-0.5"
+                >
                   <span className="text-zinc-700 dark:text-zinc-300">
-                    {i.name} <span className="text-zinc-500">× {i.quantity}</span>
+                    {i.name}{" "}
+                    <span className="text-zinc-500">× {i.quantity}</span>
                   </span>
                   <span className="tabular-nums">{formatPrice(i.amount)}</span>
                 </li>
               ))}
             </ul>
+            <DeliveryLine address={o.delivery_address} />
             <OrderHistory
               orderId={o.id}
               customerId={o.user_id}
@@ -133,7 +146,10 @@ async function OrderList() {
               ownOrder={!isWarehouse}
             />
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/5 px-5 py-3 dark:border-white/10">
-              <OrderStatusActions orderId={o.id} next={allowedNextStatuses(o.status, user.role)} />
+              <OrderStatusActions
+                orderId={o.id}
+                next={allowedNextStatuses(o.status, user.role)}
+              />
               <span className="ml-auto font-semibold tabular-nums">
                 Итого {formatPrice(o.total)}
               </span>
@@ -142,5 +158,23 @@ async function OrderList() {
         ))}
       </ul>
     </>
+  );
+}
+
+function DeliveryLine({ address }: { address: DeliveryAddress | null }) {
+  if (!address) return null;
+  return (
+    <div className="border-t border-black/5 px-5 py-3 text-sm dark:border-white/10">
+      <span className="text-zinc-500">Доставка: </span>
+      <span className="text-zinc-700 dark:text-zinc-300">
+        {address.postal_code}, {address.city}, {addressLine(address)} ·{" "}
+        {address.recipient_name}
+      </span>
+      {address.courier_note && (
+        <span className="block text-zinc-500">
+          Курьеру: {address.courier_note}
+        </span>
+      )}
+    </div>
   );
 }

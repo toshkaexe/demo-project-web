@@ -69,7 +69,14 @@ export type Order = {
   total: number;
   created_at: string;
   completed_at: string | null;
+  /** Копия адреса на момент заказа; null только у заказов, оформленных до появления адресов. */
+  delivery_address: DeliveryAddress | null;
 };
+
+export type DeliveryAddress = Pick<
+  Address,
+  "recipient_name" | "postal_code" | "country" | "city" | "street" | "house" | "apartment" | "courier_note"
+>;
 
 export type OrderStatusHistoryEntry = {
   from_status: OrderStatus | null;
@@ -77,3 +84,43 @@ export type OrderStatusHistoryEntry = {
   changed_at: string;
   changed_by: number | null;
 };
+
+/** Поля адреса доставки в том виде, в каком их принимает и отдаёт API. */
+export const ADDRESS_FIELDS = [
+  { name: "recipient_name", label: "Получатель", max: 200, required: true, placeholder: "Имя и фамилия" },
+  { name: "country", label: "Страна", max: 100, required: true, placeholder: "Россия" },
+  { name: "city", label: "Город", max: 100, required: true, placeholder: "Москва" },
+  { name: "postal_code", label: "Индекс", max: 20, required: true, placeholder: "101000" },
+  { name: "street", label: "Улица", max: 300, required: true, placeholder: "Тверская" },
+  { name: "house", label: "Дом", max: 20, required: true, placeholder: "12к2" },
+  { name: "apartment", label: "Квартира", max: 20, required: false, placeholder: "Нет — частный дом" },
+  { name: "courier_note", label: "Комментарий курьеру", max: 500, required: false, placeholder: "Подъезд, этаж, домофон" },
+] as const;
+
+export type AddressField = (typeof ADDRESS_FIELDS)[number]["name"];
+
+export type AddressInput = Record<AddressField, string>;
+
+export type Address = {
+  id: number;
+  postal_code: string;
+  country: string;
+  city: string;
+  street: string;
+  house: string;
+  apartment: string | null;
+  recipient_name: string;
+  courier_note: string | null;
+  /** Активный адрес выбран по умолчанию при оформлении заказа. Он у пользователя ровно один. */
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+/** «Тверская, д. 12к2, кв. 45» */
+export function addressLine(a: DeliveryAddress): string {
+  return [`${a.street}, д. ${a.house}`, a.apartment && `кв. ${a.apartment}`].filter(Boolean).join(", ");
+}
+
+/** Столько адресов бэкенд разрешает одному пользователю. */
+export const MAX_ADDRESSES = 10;

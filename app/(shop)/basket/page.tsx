@@ -1,8 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { API_URL, type Product } from "@/lib/api";
+import { API_URL, type Address, type Product } from "@/lib/api";
 import { readCart } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
+import { authFetch } from "@/lib/session";
+import { currentUser } from "@/lib/user";
 import { CartControls } from "@/app/ui/cart-controls";
 import { ClearCartButton } from "@/app/ui/clear-cart-button";
 import { CheckoutButton } from "@/app/ui/checkout-button";
@@ -17,7 +19,9 @@ export default function BasketPage({ searchParams }: PageProps<"/basket">) {
         Корзина
       </h1>
       <Suspense
-        fallback={<div className="h-40 animate-pulse rounded-xl bg-zinc-200/60 dark:bg-zinc-900" />}
+        fallback={
+          <div className="h-40 animate-pulse rounded-xl bg-zinc-200/60 dark:bg-zinc-900" />
+        }
       >
         <BasketContents />
       </Suspense>
@@ -41,7 +45,10 @@ async function OrderPlaced({
       <p className="font-medium">Заказ №{id} оформлен</p>
       <p className="text-sm opacity-80">
         Следить за статусом можно в{" "}
-        <Link href="/orders" className="font-medium underline underline-offset-4">
+        <Link
+          href="/orders"
+          className="font-medium underline underline-offset-4"
+        >
           моих заказах
         </Link>
         .
@@ -92,13 +99,22 @@ async function BasketContents() {
     <div className="flex flex-col gap-6">
       <ul className="divide-y divide-black/5 overflow-hidden rounded-xl border border-black/5 bg-white shadow-sm dark:divide-white/10 dark:border-white/10 dark:bg-zinc-950">
         {items.map(({ product: p, quantity }) => (
-          <li key={p.id} className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <li
+            key={p.id}
+            className="flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+          >
             <div className="min-w-0 flex-1">
-              <h2 className="font-medium text-zinc-900 dark:text-zinc-50">{p.name}</h2>
-              <p className="text-sm text-zinc-500">{formatPrice(p.price)} за шт.</p>
+              <h2 className="font-medium text-zinc-900 dark:text-zinc-50">
+                {p.name}
+              </h2>
+              <p className="text-sm text-zinc-500">
+                {formatPrice(p.price)} за шт.
+              </p>
               {quantity > p.quantity && (
                 <p className="text-sm text-red-600 dark:text-red-400">
-                  {p.quantity === 0 ? "Закончился на складе" : "Столько нет на складе"}
+                  {p.quantity === 0
+                    ? "Закончился на складе"
+                    : "Столько нет на складе"}
                 </p>
               )}
             </div>
@@ -115,15 +131,31 @@ async function BasketContents() {
           <ClearCartButton />
           <div className="text-right">
             <div className="text-sm text-zinc-500">Итого</div>
-            <div className="text-xl font-semibold tabular-nums">{formatPrice(total)}</div>
+            <div className="text-xl font-semibold tabular-nums">
+              {formatPrice(total)}
+            </div>
           </div>
         </div>
         <CheckoutButton
+          addresses={await deliveryAddresses()}
           disabledReason={
-            shortage ? "Некоторых товаров не хватает на складе — уменьшите количество" : undefined
+            shortage
+              ? "Некоторых товаров не хватает на складе — уменьшите количество"
+              : undefined
           }
         />
       </div>
     </div>
   );
+}
+
+/** Адреса вошедшего пользователя; null — гость. Не загрузились — пустой список, бэкенд всё равно проверит адрес. */
+async function deliveryAddresses(): Promise<Address[] | null> {
+  if (!(await currentUser())) return null;
+  try {
+    const res = await authFetch("/users/me/addresses", { cache: "no-store" });
+    return res?.ok ? ((await res.json()) as Address[]) : [];
+  } catch {
+    return [];
+  }
 }

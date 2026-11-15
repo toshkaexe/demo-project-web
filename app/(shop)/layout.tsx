@@ -33,7 +33,7 @@ function Logo({ href }: { href: string }) {
   );
 }
 
-/** Склад видит «Лавка», «Заказы» и «Товары», остальные — каталог и корзину. */
+/** Склад видит «Лавка», «Заказы» и «Товары», остальные — каталог, корзину, а после входа ещё заказы и профиль. */
 async function Nav() {
   const user = await currentUser();
 
@@ -62,9 +62,14 @@ async function Nav() {
         <BasketBadge />
       </Link>
       {user && (
-        <Link href="/orders" className={navLink}>
-          Мои заказы
-        </Link>
+        <>
+          <Link href="/orders" className={navLink}>
+            Мои заказы
+          </Link>
+          <Link href="/profile" className={navLink}>
+            Профиль
+          </Link>
+        </>
       )}
     </nav>
   );
@@ -95,10 +100,10 @@ async function UserBar() {
 
   return (
     <div className="flex items-center gap-4 text-sm">
-      <div className="hidden text-right sm:block">
+      <Link href="/profile" title="Профиль" className="hidden text-right hover:opacity-70 sm:block">
         <div className="font-medium">{user.email}</div>
         <div className="text-zinc-500">{ROLE_LABEL[user.role] ?? user.role}</div>
-      </div>
+      </Link>
       <form action={logout}>
         <button
           type="submit"

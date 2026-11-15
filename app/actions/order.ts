@@ -1,5 +1,6 @@
 "use server";
 
+import { refresh } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { readError, type Product } from "@/lib/api";
@@ -10,7 +11,20 @@ export type CheckoutState = { error?: string };
 
 type CreatedOrder = { id: number };
 
-export async function placeOrder(): Promise<CheckoutState> {
+/** Оформляет заказ из корзины на выбранный адрес (`address_id` из формы). */
+export async function placeOrder(
+  _prev: CheckoutState,
+  formData: FormData,
+): Promise<CheckoutState> {
+  const rawAddress = formData.get("address_id");
+  const addressId =
+    typeof rawAddress === "string" && rawAddress !== ""
+      ? Number(rawAddress)
+      : null;
+  if (addressId !== null && !(Number.isInteger(addressId) && addressId > 0)) {
+    return { error: "Некорректный адрес доставки" };
+  }
+
   const cart = await readCart();
   const items = Object.entries(cart).map(([id, quantity]) => ({
     product_id: Number(id),
@@ -23,7 +37,8 @@ export async function placeOrder(): Promise<CheckoutState> {
     res = await authFetch("/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items }),
+      // без address_id бэкенд берёт активный адрес
+      body: JSON.stringify({ items, address_id: addressId }),
     });
   } catch {
     return { error: "Сервер недоступен, попробуйте позже" };
@@ -38,17 +53,30 @@ export async function placeOrder(): Promise<CheckoutState> {
   }
 
   const err = await readError(res);
+
+  if (res.status === 400 && /no delivery address/i.test(err.message ?? "")) {
+    return { error: "Добавьте адрес доставки" };
+  }
+  if (res.status === 400 && /^address/i.test(err.message ?? "")) {
+    refresh();
+    return { error: "Этого адреса больше нет, выберите другой" };
+  }
   const productId = Number(err.message?.match(/product (\d+)/i)?.[1]);
   const name = productId ? await productName(productId) : null;
   const what = name ? `«${name}»` : "одного из товаров";
 
   if (res.status === 409) {
-    return { error: `Недостаточно ${what} на складе. Уменьшите количество в корзине.` };
+    return {
+      error: `Недостаточно ${what} на складе. Уменьшите количество в корзине.`,
+    };
   }
   if (res.status === 400 && /not found/i.test(err.message ?? "")) {
-    return { error: "Один из товаров больше не продаётся. Уберите его из корзины." };
+    return {
+      error: "Один из товаров больше не продаётся. Уберите его из корзины.",
+    };
   }
-  if (res.status === 400) return { error: "Не удалось оформить заказ: проверьте корзину" };
+  if (res.status === 400)
+    return { error: "Не удалось оформить заказ: проверьте корзину" };
   return { error: "Что-то пошло не так, попробуйте позже" };
 }
 

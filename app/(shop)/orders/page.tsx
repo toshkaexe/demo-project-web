@@ -5,8 +5,10 @@ import {
   ACCESS_COOKIE,
   API_URL,
   addressLine,
+  ORDERS_PAGE_SIZE,
   type DeliveryAddress,
   type Order,
+  type Page,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 import { currentUser } from "@/lib/user";
@@ -22,7 +24,7 @@ const dateFormat = new Intl.DateTimeFormat("ru-RU", {
   minute: "2-digit",
 });
 
-export default function OrdersPage() {
+export default function OrdersPage({ searchParams }: PageProps<"/orders">) {
   return (
     <>
       <Suspense
@@ -37,13 +39,26 @@ export default function OrdersPage() {
           </ul>
         }
       >
-        <OrderList />
+        <OrderList searchParams={searchParams} />
       </Suspense>
     </>
   );
 }
 
-async function OrderList() {
+/**
+ * Номер страницы из адреса: `/orders?page=2`. В адресе страницы считаются с 1, как их видит человек,
+ * в API — с 0. Всё, что не положительное целое, — первая страница.
+ */
+function pageFromUrl(value: string | string[] | undefined): number {
+  return typeof value === "string" && /^[1-9]\d{0,6}$/.test(value) ? Number(value) : 1;
+}
+
+async function OrderList({
+  searchParams,
+}: {
+  searchParams: PageProps<"/orders">["searchParams"];
+}) {
+  const pageNumber = pageFromUrl((await searchParams).page);
   const user = await currentUser();
   if (!user) redirect("/login?next=/orders");
   const isWarehouse = user.role === "WAREHOUSE";
@@ -54,7 +69,11 @@ async function OrderList() {
   );
 
   const access = (await cookies()).get(ACCESS_COOKIE)?.value;
-  const res = await fetch(`${API_URL}/orders`, {
+  const query = new URLSearchParams({
+    page: String(pageNumber - 1),
+    size: String(ORDERS_PAGE_SIZE),
+  });
+  const res = await fetch(`${API_URL}/orders?${query}`, {
     headers: { Authorization: `Bearer ${access}` },
     cache: "no-store",
   }).catch(() => null);
@@ -69,7 +88,12 @@ async function OrderList() {
       </>
     );
   }
-  const orders = (await res.json()) as Order[];
+  const result = (await res.json()) as Page<Order>;
+  const orders = result.content;
+  // страница после последней (старая ссылка, заказов стало меньше) — на последнюю существующую
+  if (orders.length === 0 && result.total_pages > 0) {
+    redirect(`/orders?page=${result.total_pages}`);
+  }
 
   if (orders.length === 0) {
     return (
@@ -157,7 +181,42 @@ async function OrderList() {
           </li>
         ))}
       </ul>
+      <Pagination page={pageNumber} totalPages={result.total_pages} total={result.total_elements} />
     </>
+  );
+}
+
+/** «← Назад · Страница 2 из 5 · Вперёд →». Одна страница — ничего не показываем. */
+function Pagination({ page, totalPages, total }: { page: number; totalPages: number; total: number }) {
+  if (totalPages <= 1) return null;
+  const link =
+    "inline-flex h-9 items-center rounded-lg border border-black/10 px-3 text-sm font-medium hover:bg-zinc-100 dark:border-white/15 dark:hover:bg-zinc-900";
+  const disabled =
+    "inline-flex h-9 items-center rounded-lg border border-black/5 px-3 text-sm font-medium text-zinc-400 dark:border-white/10 dark:text-zinc-600";
+  return (
+    <nav aria-label="Страницы заказов" className="mt-6 flex items-center justify-between gap-3">
+      {page > 1 ? (
+        <Link href={page === 2 ? "/orders" : `/orders?page=${page - 1}`} className={link} rel="prev">
+          ← Назад
+        </Link>
+      ) : (
+        <span className={disabled} aria-disabled="true">
+          ← Назад
+        </span>
+      )}
+      <span className="text-sm text-zinc-600 tabular-nums dark:text-zinc-400">
+        Страница {page} из {totalPages} · заказов {total}
+      </span>
+      {page < totalPages ? (
+        <Link href={`/orders?page=${page + 1}`} className={link} rel="next">
+          Вперёд →
+        </Link>
+      ) : (
+        <span className={disabled} aria-disabled="true">
+          Вперёд →
+        </span>
+      )}
+    </nav>
   );
 }
 

@@ -73,6 +73,18 @@ export type Order = {
   delivery_address: DeliveryAddress | null;
 };
 
+/** Одна страница списка (GET /orders). `page` в API считается с 0. */
+export type Page<T> = {
+  content: T[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+};
+
+/** Заказов на одной странице списка; бэкенд разрешает от 1 до 100. */
+export const ORDERS_PAGE_SIZE = 20;
+
 export type DeliveryAddress = Pick<
   Address,
   "recipient_name" | "postal_code" | "country" | "city" | "street" | "house" | "apartment" | "courier_note"
